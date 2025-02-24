@@ -1,13 +1,6 @@
 from django import forms
-from django.contrib.auth.forms import UserCreationForm
 
 from .models import User, Post, Comment
-
-
-class CustomUserCreationForm(UserCreationForm):
-    class Meta(UserCreationForm.Meta):
-        model = User
-        fields = ("username", "email", "first_name", "last_name")
 
 
 class EditUserProfileForm(forms.ModelForm):
@@ -16,7 +9,7 @@ class EditUserProfileForm(forms.ModelForm):
         fields = ("username", "email", "first_name", "last_name")
 
 
-class CreatePostForm(forms.ModelForm):
+class CreateUpdatePostForm(forms.ModelForm):
 
     class Meta:
         model = Post
@@ -29,7 +22,7 @@ class CreatePostForm(forms.ModelForm):
             'image'
         )
         wigdets = {
-            'pub_date': forms.DateInput(attrs={'type': 'date'})
+            'pub_date': forms.DateTimeInput(attrs={'type': 'datetime_local'})
         }
 
 
