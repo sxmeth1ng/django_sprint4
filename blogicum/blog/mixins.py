@@ -1,6 +1,5 @@
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.mixins import UserPassesTestMixin
-from django.core.exceptions import PermissionDenied
 from django.urls import reverse
 from django.shortcuts import redirect
 
@@ -31,10 +30,7 @@ class OnlyAuthorMixin(UserPassesTestMixin):
         return object.author == self.request.user
 
     def handle_no_permission(self):
-        if self.raise_exception:
-            raise PermissionDenied()
-        else:
-            url = reverse(
-                'blog:post_detail', kwargs={'post_id': self.kwargs['post_id']}
-            )
-            return redirect(url)
+        url = reverse(
+            'blog:post_detail', kwargs={'post_id': self.kwargs['post_id']}
+        )
+        return redirect(url)

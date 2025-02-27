@@ -53,12 +53,10 @@ class ProfileListView(ListView):
     template_name = 'blog/profile.html'
 
     def get_queryset(self):
-        user = self.get_object()
-        if self.request.user == user:
-            qs = get_filtered_qs(switch_to_filter=True, is_comment=True)
-        else:
-            qs = get_filtered_qs(is_comment=True)
-        qs = qs.filter(author__username=self.kwargs['username'])
+        qs = get_filtered_qs(
+            is_hidden=(self.request.user != self.get_object()),
+            is_comment=True
+        ).filter(author=self.get_object())
         return qs
 
     def get_context_data(self, **kwargs):
@@ -133,7 +131,7 @@ class CommentDeleteView(
     template_name = 'blog/comment.html'
 
 
-def get_filtered_qs(switch_to_filter=False, is_comment=False):
+def get_filtered_qs(is_hidden=False, is_comment=False):
     """Функция выполняющая базовый запрос."""
     queryset = Post.objects.select_related(
         'category',
@@ -143,21 +141,20 @@ def get_filtered_qs(switch_to_filter=False, is_comment=False):
     if is_comment:
         queryset = queryset.annotate(
             comment_count=Count('comments')).order_by('-pub_date')
-    if switch_to_filter:
-        return queryset.order_by('-pub_date')
-    else:
-        return queryset.filter(
+    if is_hidden:
+        queryset = queryset.filter(
             pub_date__lt=datetime.now(),
             is_published=True,
             category__is_published=True
-        ).order_by('-pub_date')
+        )
+    return queryset
 
 
 class IndexView(ListView):
     template_name = 'blog/index.html'
     context_object_name = 'page_obj'
     paginate_by = COUNT_OF_POSTS
-    queryset = get_filtered_qs(False, True)
+    queryset = get_filtered_qs(is_hidden=True, is_comment=True)
 
 
 class PostDetailView(DetailView):
@@ -172,14 +169,12 @@ class PostDetailView(DetailView):
         return context
 
     def get_object(self):
-        queryset = get_filtered_qs(switch_to_filter=True)
+        queryset = get_filtered_qs()
         obj = get_object_or_404(queryset, pk=self.kwargs['post_id'])
         if obj.author != self.request.user:
-            if not obj.is_published:
-                raise Http404('Page not found')
-            if obj.pub_date > datetime.now(timezone.utc):
-                raise Http404('Page not found')
-            if not obj.category.is_published:
+            if (not obj.is_published
+                    or obj.pub_date > datetime.now(timezone.utc)
+                    or not obj.category.is_published):
                 raise Http404('Page not found')
         return obj
 
@@ -192,8 +187,8 @@ class CategoryPostsView(ListView):
 
     def get_queryset(self):
         category_of_post = self.get_object()
-        return get_filtered_qs().filter(
-            category=category_of_post).order_by('-pub_date')
+        return get_filtered_qs(is_hidden=True, is_comment=True).filter(
+            category=category_of_post)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
